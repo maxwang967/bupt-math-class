@@ -3,7 +3,9 @@
 # @Author  : morningstarwang
 # @FileName: eng_value.py
 # @Blog: wangchenxing.com
-from math import sqrt, sin, pi
+from copy import deepcopy
+from datetime import datetime
+from math import sqrt, sin, pi, atan, cos
 
 from numpy import linalg as la
 
@@ -12,7 +14,7 @@ def divide_by_number(a, number):
     """
     a divided by number
     :param a: matrix
-    :param number: a constant number
+    :param number: a constant
     :return:
     """
     a = [
@@ -37,8 +39,8 @@ def dot(a, b):
     # m,n * n,p => m,p
     result = [
         [
-            0 for y in range(p)
-        ] for x in range(m)
+            0 for _ in range(p)
+        ] for _ in range(m)
     ]
     for i in range(m):
         for j in range(p):
@@ -47,13 +49,32 @@ def dot(a, b):
     return result
 
 
-def power_eng(a, iter_num):
+def transpose(a):
+    """
+    transpose matrix
+    :param a: matrix
+    :return: transposed matrix
+    """
+    m = len(a)
+    n = len(a[0])
+    result = [
+        [
+            0 for _ in range(m)
+        ] for _ in range(n)
+    ]
+    for i in range(n):
+        for j in range(m):
+            result[i][j] = a[j][i]
+    return a
+
+
+def power_eng(a):
     """
     幂法求矩阵最大特征值
     :param a: 待求矩阵
-    :param iter_num: 迭代次数
     :return: 最大特征值，特征向量
     """
+    iter_num = 1000
     m = len(a)
     # 全1矩阵，shape=(m, 1)
     v0 = [
@@ -75,6 +96,65 @@ def power_eng(a, iter_num):
     # eig = max(v1[0])
     # v = divide_by_number(v1, eig)
     return m, v1
+
+
+def jacobi_eng(a):
+    """
+    Jacobi迭代法求矩阵特征值
+    :param a: 待求矩阵
+    :return: 对角矩阵，对角线上为特征值
+    """
+    assert len(a) == len(a[0])
+    n = len(a)
+    iter_num = 0
+    while iter_num < 1000:
+        a_t = deepcopy(a)
+        a_max = 0
+        j = -1
+        k = -1
+        for i1 in range(n):
+            for i2 in range(n):
+                # 去除下三角和主对角线
+                if i1 >= i2:
+                    continue
+                if abs(a[i1][i2]) > a_max:
+                    a_max = abs(a[i1][i2])
+                    j = i1
+                    k = i2
+        a_jk = a[j][k]
+        if a_jk == 0:
+            break
+        if a[j][j] == a[k][k]:
+            theta = pi / 4
+        else:
+            theta = atan(
+                (2 * a[j][k]) / (a[j][j] - a[k][k])
+            ) / 2
+        s = sin(theta)
+        s2 = sin(2 * theta)
+        c = cos(theta)
+        c2 = cos(theta * 2)
+        # 旋转矩阵
+        # 1 jj,kk
+        a_t[j][j] = a[j][j] * c * c + a[k][k] * s * s + 2 * a[j][k] * s * c
+        a_t[k][k] = a[j][j] * s * s + a[k][k] * c * c - 2 * a[j][k] * s * c
+        # 2 jk,kj
+        a_t[j][k] = 0.5 * (a[k][k] - a[j][j]) * s2 + a[j][k] * c2
+        a_t[k][j] = 0.5 * (a[k][k] - a[j][j]) * s2 + a[j][k] * c2
+        # 3 j*,*j
+        # 4 k*,*k
+        for i in range(len(a)):
+            if i != j and i != k:
+                a_t[j][i] = a[j][i] * c + a[k][i] * s
+                a_t[i][j] = a[j][i] * c + a[k][i] * s
+                a_t[k][i] = a[k][i] * c - a[j][i] * s
+                a_t[i][k] = a[k][i] * c - a[j][i] * s
+        # 5 **
+        # DO NOTHING
+        a = a_t
+        del a_t
+        iter_num += 1
+    return a
 
 
 if __name__ == '__main__':
@@ -123,14 +203,52 @@ if __name__ == '__main__':
         "A": A,
         "B": B,
         "C": C,
-        "D": D
+        "D": D,
     }
+
+    # Power Method
+    print("---------------------")
+    print(f"Power Method:")
     for key in all_data.keys():
+        if "E" == key:
+            continue
         print(f"Matrix {key}:")
-        my_lambda1, my_v = power_eng(all_data[key], 1000)
+        start_time = datetime.now()
+        my_lambda1, my_v = power_eng(all_data[key])
+        end_time = datetime.now()
         lambda1, v = la.eig(all_data[key])
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"my_lambda1={my_lambda1}")
         print(f"my_v={[x[0] for x in my_v]}")
+
         print(f"ground_truth_lambda1={max(lambda1)}")
-        print(f"differ={abs(my_lambda1 - max(lambda1))}")
+        print(f"ground_truth_differ={abs(my_lambda1 - max(lambda1))}")
+        print()
+
+    # Inv Power Method
+    print("---------------------")
+    print(f"Inv Power Method:")
+    for key in all_data.keys():
+        if "E" == key:
+            continue
+        # TODO 线性方程组求解
+        print()
+
+    # Jacobi Method
+    print("---------------------")
+    print(f"Jacobi Method:")
+    for key in all_data.keys():
+        if "E" == key:
+            continue
+        print(f"Matrix {key}:")
+        start_time = datetime.now()
+        a = jacobi_eng(all_data[key])
+        end_time = datetime.now()
+        lambdas = [x[idx] for idx, x in enumerate(a)]
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+        print(f"lambdas={lambdas}")
+        ground_truth_lambdas, _ = la.eig(all_data[key])
+        print(f"ground_truth_lambdas={ground_truth_lambdas}")
+        print(f"ground_truth_differ={abs(max(lambdas) - max(ground_truth_lambdas))}")
+        print()
 
