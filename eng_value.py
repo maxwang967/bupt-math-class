@@ -6,6 +6,7 @@
 from copy import deepcopy
 from datetime import datetime
 from math import sqrt, sin, pi, atan, cos
+import global_for_eng as glb
 
 from numpy import linalg as la
 
@@ -17,12 +18,13 @@ def multiply_with_number(a, number):
     :param number: a constant
     :return:
     """
-    a = [
+    aa = deepcopy(a)
+    aa = [
         [
             y * number for y in x
-        ] for x in a
+        ] for x in aa
     ]
-    return a
+    return aa
 
 
 def divide_by_number(a, number):
@@ -32,12 +34,13 @@ def divide_by_number(a, number):
     :param number: a constant
     :return:
     """
-    a = [
+    aa = deepcopy(a)
+    aa = [
         [
             y / number for y in x
-        ] for x in a
+        ] for x in aa
     ]
-    return a
+    return aa
 
 
 def dot(a, b):
@@ -83,6 +86,65 @@ def transpose(a):
     return result
 
 
+def create_identify_matrix(n):
+    """
+    create identify matrix (n x n)
+    :param n: n dim
+    :return: shape=n,n
+    """
+    return [
+       [
+          1 if i == j else 0 for j in range(n)
+       ] for i in range(n)
+    ]
+
+
+def lu_decomposition(aa):
+    """
+    lu decomposition
+    :param a: coefficient matrix
+    :return: matrix l and matrix u
+    """
+    a = deepcopy(aa)
+    u = a
+    l = create_identify_matrix(len(a))
+    for j in range(len(a)):
+        for i in range(j + 1, len(a)):
+            mult = a[i][j] / a[j][j]
+            for k in range(len(a[i])):
+                u[i][k] = a[i][k] - a[j][k] * mult
+            l[i][j] = mult
+    return l, u
+
+
+def compute_lu_result(a, bb, is_initial=False):
+    """
+    compute lu results for equations
+    :param a: coefficient matrix
+    :param b: right side matrix
+    :return: equation results
+    """
+    bb = deepcopy(bb)
+    if is_initial:
+        b = [x[0] for x in bb]
+    else:
+        b = bb
+    l, u = lu_decomposition(a)
+    u_multi_x = [0 for _ in range(len(a))]
+    for i in range(len(a)):
+        right = b[i]
+        for j in range(i):
+            right -= l[i][j] * u_multi_x[j]
+        u_multi_x[i] = right / l[i][i]
+    results = [0 for _ in range(len(a[0]))]
+    for i in range(len(u) - 1, -1, -1):
+        right = u_multi_x[i]
+        for j in range(len(u) - 1, i, -1):
+            right -= u[i][j] * results[j]
+        results[i] = right / u[i][i]
+    return results
+
+
 def power_eng(a, n):
     """
     幂法求矩阵最大特征值
@@ -111,6 +173,40 @@ def power_eng(a, n):
     # eig = max(v1[0])
     # v = divide_by_number(v1, eig)
     return pld, env, True
+
+
+def inv_power_eng(a, n):
+    """
+    反幂法求矩阵最小特征值
+    :param a: 待求矩阵
+    :param n: 矩阵大小
+    :return: 最小特征值，特征向量
+    """
+    iter_num = 1000
+    # 全1矩阵，shape=(m, 1)
+    v0 = [
+        [1] for _ in range(n)
+    ]
+    # env = dot(a, v0)
+    env = compute_lu_result(a, v0, is_initial=True)
+    k = 0
+    pld = 0
+    # while abs(max(v0)[0] - max(v1)[0]) > delta:
+    while k <= iter_num:
+        v0 = env
+        # v0_max = max(v0)[0]
+        env = compute_lu_result(a, v0)
+        # env = dot(a, v0)
+        pld = max(map(abs, env))
+        env = [[x] for x in env]
+        env = divide_by_number(env, pld)
+        env = [x[0] for x in env]
+        # v1 = dot(a, v0)
+        k += 1
+        # print(f"delta={abs(max(v0)[0] - max(v1)[0])}")
+    # eig = max(v1[0])
+    # v = divide_by_number(v1, eig)
+    return 1 / pld, env, True
 
 
 def jacobi_eng(a, n):
@@ -180,17 +276,17 @@ def gauss_hessen(a, n):
     :param n: 矩阵大小
     :return: 上Hessenberg矩阵
     """
-    for m in range(n-1):
+    for m in range(n - 1):
         x = 0.0
         i = m
         # 寻找主元
         for j in range(n):
-            if abs(a[j][m-1]) > abs(x):
-                x = a[j][m-1]
+            if abs(a[j][m - 1]) > abs(x):
+                x = a[j][m - 1]
                 i = j
         # 交换行列
         if i != m:
-            for j in range(m-1, n):
+            for j in range(m - 1, n):
                 # SWAP(a[i][j], a[m][j])
                 t = a[i][j]
                 a[i][j] = a[m][j]
@@ -202,11 +298,11 @@ def gauss_hessen(a, n):
                 a[j][m] = t
         # 执行消去法
         if x != 0.0:
-            for i in range(m+1, n):
+            for i in range(m + 1, n):
                 y = a[i][m - 1]
                 if y != 0:
                     y /= x
-                    a[i][m-1] = y
+                    a[i][m - 1] = y
                     for j in range(m, n):
                         a[i][j] -= y * a[m][j]
                     for j in range(0, n):
@@ -217,6 +313,32 @@ def gauss_hessen(a, n):
             if i > j + 1:
                 a[i][j] = 0
     return a
+
+
+def qr_aux(i, j):
+    if j - i > 2:
+        has_zero = False
+        for idx1 in range(i + 1, j):
+            for idx2 in range(i, j - 1):
+                if glb.a[idx1][idx2] == 0:
+                    has_zero = True
+                    qr_aux(i, idx1)
+                    qr_aux(idx1, j)
+        if not has_zero:
+            # QR分解
+            pass
+    elif j - i == 2:
+        # 手动算特征值
+        return True
+    elif j - i == 1:
+        # 手动算特征值
+        return True
+
+
+def qr_eng(h, m):
+    glb.a = deepcopy(h)
+    glb.n = m
+    return qr_aux(0, glb.n)
 
 
 if __name__ == '__main__':
@@ -278,8 +400,8 @@ if __name__ == '__main__':
     print("---------------------")
     print(f"Power Method:")
     for key in all_data.keys():
-        if "E" == key:
-            continue
+        # if "E" == key:
+        #     continue
         print(f"Matrix {key}:")
         start_time = datetime.now()
         pld, env, _ = power_eng(all_data[key], len(all_data[key]))
@@ -311,9 +433,32 @@ if __name__ == '__main__':
     print("---------------------")
     print(f"Inv Power Method:")
     for key in all_data.keys():
-        if "E" == key:
-            continue
-        # TODO 线性方程组求解
+        print(f"Matrix {key}:")
+        start_time = datetime.now()
+        pld, env, _ = inv_power_eng(all_data[key], len(all_data[key]))
+        end_time = datetime.now()
+        lambda1, v = la.eig(all_data[key])
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+        print(f"my_lambda1={pld}")
+        print(f"my_v={[x for x in env]}")
+        env = [[x] for x in env]
+        Ax = dot(all_data[key], env)
+        lambda_x = multiply_with_number(env, pld)
+        differ_matrix = [
+            [
+                0 for _ in range(len(Ax))
+            ] for _ in range(len(Ax))
+        ]
+        for i in range(len(Ax)):
+            for j in range(1):
+                differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
+        square_sum = 0
+        for i in range(len(differ_matrix)):
+            for j in range(len(differ_matrix)):
+                square_sum += differ_matrix[i][j] * differ_matrix[i][j]
+        differ = sqrt(square_sum)
+        print(f"ground_truth_lambda1={lambda1}")
+        print(f"differ={differ}")
         print()
 
     # Jacobi Method
@@ -343,7 +488,8 @@ if __name__ == '__main__':
         print(f"Matrix {key}:")
         start_time = datetime.now()
         # TODO QR算法
-        ev, _ = jacobi_eng(all_data[key], len(all_data[key]))
+        h = gauss_hessen(all_data[key], len(all_data[key]))
+        qr_eng(h, len(h))
         end_time = datetime.now()
 
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
