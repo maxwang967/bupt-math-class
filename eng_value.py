@@ -3,11 +3,13 @@
 # @Author  : morningstarwang
 # @FileName: eng_value.py
 # @Blog: wangchenxing.com
+
 from copy import deepcopy
 from datetime import datetime
 from math import sqrt, sin, pi, atan, cos
 import global_for_eng as glb
 
+# TODO this 'numpy' is to remove after release, and all codes using this package can be removed at same time
 from numpy import linalg as la
 
 
@@ -93,9 +95,9 @@ def create_identify_matrix(n):
     :return: shape=n,n
     """
     return [
-       [
-          1 if i == j else 0 for j in range(n)
-       ] for i in range(n)
+        [
+            1 if i == j else 0 for j in range(n)
+        ] for i in range(n)
     ]
 
 
@@ -493,8 +495,8 @@ if __name__ == '__main__':
         end_time = datetime.now()
 
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={ev}")
+        print(f"lambdas={glb.en}")
         ground_truth_lambdas, _ = la.eig(all_data[key])
         print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
+        print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
         print()

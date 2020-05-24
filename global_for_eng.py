@@ -4,6 +4,7 @@
 # @FileName: global_for_eng.py
 # @Blog: wangchenxing.com
 
+# this file is for QR result saving, matching course requirements
 a = None
 n = 0
 en = []
