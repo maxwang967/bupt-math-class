@@ -10,6 +10,21 @@ from math import sqrt, sin, pi, atan, cos
 from numpy import linalg as la
 
 
+def multiply_with_number(a, number):
+    """
+    multiply_with_number
+    :param a: matrix
+    :param number: a constant
+    :return:
+    """
+    a = [
+        [
+            y * number for y in x
+        ] for x in a
+    ]
+    return a
+
+
 def divide_by_number(a, number):
     """
     a divided by number
@@ -65,47 +80,47 @@ def transpose(a):
     for i in range(n):
         for j in range(m):
             result[i][j] = a[j][i]
-    return a
+    return result
 
 
-def power_eng(a):
+def power_eng(a, n):
     """
     幂法求矩阵最大特征值
     :param a: 待求矩阵
+    :param n: 矩阵大小
     :return: 最大特征值，特征向量
     """
     iter_num = 1000
-    m = len(a)
     # 全1矩阵，shape=(m, 1)
     v0 = [
-        [1] for _ in range(m)
+        [1] for _ in range(n)
     ]
-    v1 = dot(a, v0)
+    env = dot(a, v0)
     k = 0
-    m = 0
+    pld = 0
     # while abs(max(v0)[0] - max(v1)[0]) > delta:
     while k <= iter_num:
-        v0 = v1
+        v0 = env
         # v0_max = max(v0)[0]
-        v1 = dot(a, v0)
-        m = list(map(abs, max(v1)))[0]
-        v1 = divide_by_number(v1, m)
+        env = dot(a, v0)
+        pld = list(map(abs, max(env)))[0]
+        env = divide_by_number(env, pld)
         # v1 = dot(a, v0)
         k += 1
         # print(f"delta={abs(max(v0)[0] - max(v1)[0])}")
     # eig = max(v1[0])
     # v = divide_by_number(v1, eig)
-    return m, v1
+    return pld, env, True
 
 
-def jacobi_eng(a):
+def jacobi_eng(a, n):
     """
     Jacobi迭代法求矩阵特征值
     :param a: 待求矩阵
+    :param n: 矩阵大小
     :return: 对角矩阵，对角线上为特征值
     """
     assert len(a) == len(a[0])
-    n = len(a)
     iter_num = 0
     while iter_num < 1000:
         a_t = deepcopy(a)
@@ -154,6 +169,53 @@ def jacobi_eng(a):
         a = a_t
         del a_t
         iter_num += 1
+    ev = [x[idx] for idx, x in enumerate(a)]
+    return ev, True
+
+
+def gauss_hessen(a, n):
+    """
+    将矩阵转换为上Hessenberg矩阵
+    :param a: 待求矩阵
+    :param n: 矩阵大小
+    :return: 上Hessenberg矩阵
+    """
+    for m in range(n-1):
+        x = 0.0
+        i = m
+        # 寻找主元
+        for j in range(n):
+            if abs(a[j][m-1]) > abs(x):
+                x = a[j][m-1]
+                i = j
+        # 交换行列
+        if i != m:
+            for j in range(m-1, n):
+                # SWAP(a[i][j], a[m][j])
+                t = a[i][j]
+                a[i][j] = a[m][j]
+                a[m][j] = t
+            for j in range(n):
+                # SWAP(a[j][i], a[j][m])
+                t = a[j][i]
+                a[j][i] = a[j][m]
+                a[j][m] = t
+        # 执行消去法
+        if x != 0.0:
+            for i in range(m+1, n):
+                y = a[i][m - 1]
+                if y != 0:
+                    y /= x
+                    a[i][m-1] = y
+                    for j in range(m, n):
+                        a[i][j] -= y * a[m][j]
+                    for j in range(0, n):
+                        a[j][m] += y * a[j][i]
+    # i > j + 1的元素输出为0
+    for i in range(n):
+        for j in range(n):
+            if i > j + 1:
+                a[i][j] = 0
     return a
 
 
@@ -199,11 +261,17 @@ if __name__ == '__main__':
             (sqrt(2 / 21) * sin((j * k * pi) / 21)) for k in range(1, 21)
         ] for j in range(1, 21)
     ]
+    E = [
+        [
+            1 if i == j else (-1 if i > j else (1 if j == 49 else 0)) for j in range(50)
+        ] for i in range(50)
+    ]
     all_data = {
         "A": A,
         "B": B,
         "C": C,
         "D": D,
+        "E": E
     }
 
     # Power Method
@@ -214,15 +282,29 @@ if __name__ == '__main__':
             continue
         print(f"Matrix {key}:")
         start_time = datetime.now()
-        my_lambda1, my_v = power_eng(all_data[key])
+        pld, env, _ = power_eng(all_data[key], len(all_data[key]))
         end_time = datetime.now()
         lambda1, v = la.eig(all_data[key])
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"my_lambda1={my_lambda1}")
-        print(f"my_v={[x[0] for x in my_v]}")
-
+        print(f"my_lambda1={pld}")
+        print(f"my_v={[x[0] for x in env]}")
+        Ax = dot(all_data[key], env)
+        lambda_x = multiply_with_number(env, pld)
+        differ_matrix = [
+            [
+                0 for _ in range(len(Ax))
+            ] for _ in range(len(Ax))
+        ]
+        for i in range(len(Ax)):
+            for j in range(1):
+                differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
+        square_sum = 0
+        for i in range(len(differ_matrix)):
+            for j in range(len(differ_matrix)):
+                square_sum += differ_matrix[i][j] * differ_matrix[i][j]
+        differ = sqrt(square_sum)
         print(f"ground_truth_lambda1={max(lambda1)}")
-        print(f"ground_truth_differ={abs(my_lambda1 - max(lambda1))}")
+        print(f"differ={differ}")
         print()
 
     # Inv Power Method
@@ -242,13 +324,31 @@ if __name__ == '__main__':
             continue
         print(f"Matrix {key}:")
         start_time = datetime.now()
-        a = jacobi_eng(all_data[key])
+        ev, _ = jacobi_eng(all_data[key], len(all_data[key]))
         end_time = datetime.now()
-        lambdas = [x[idx] for idx, x in enumerate(a)]
+
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={lambdas}")
+        print(f"lambdas={ev}")
         ground_truth_lambdas, _ = la.eig(all_data[key])
         print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        print(f"ground_truth_differ={abs(max(lambdas) - max(ground_truth_lambdas))}")
+        print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
         print()
 
+    # QR Method
+    print("---------------------")
+    print(f"QR Method:")
+    for key in all_data.keys():
+        # if "E" == key:
+        #     continue
+        print(f"Matrix {key}:")
+        start_time = datetime.now()
+        # TODO QR算法
+        ev, _ = jacobi_eng(all_data[key], len(all_data[key]))
+        end_time = datetime.now()
+
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+        print(f"lambdas={ev}")
+        ground_truth_lambdas, _ = la.eig(all_data[key])
+        print(f"ground_truth_lambdas={ground_truth_lambdas}")
+        print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
+        print()
