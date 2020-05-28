@@ -101,6 +101,13 @@ def create_identify_matrix(n):
     ]
 
 
+def norm(v):
+    sum_num = 0
+    for vv in v:
+        sum_num += vv * vv
+    return sqrt(sum_num)
+
+
 def lu_decomposition(aa):
     """
     lu decomposition
@@ -145,6 +152,50 @@ def compute_lu_result(a, bb, is_initial=False):
             right -= u[i][j] * results[j]
         results[i] = right / u[i][i]
     return results
+
+
+def get_q_r(i, j):
+    """
+    Gram-schmidt正交化方法获取Q、R矩阵
+    :param i
+    :param j
+    :return: Q、R矩阵
+    """
+    aa = [
+        [0 for _ in range(j - i)] for _ in range(j - i)
+    ]
+
+    for idx1 in range(j - i):
+        for idx2 in range(j - i):
+            aa[idx1][idx2] = glb.a[i + idx1][i + idx2]
+    q = [
+        [
+            0 for _ in range(len(aa[0]))
+        ] for _ in range(len(aa))
+    ]
+    cnt = 0
+    a_t = transpose(aa)
+    for a in a_t:
+        u = deepcopy(a)
+        for i in range(cnt):
+            u_minus = dot(
+                dot([
+                    [x for x in q[:][i]]
+                ],
+                    [[x] for x in a]),
+                [[x for x in q[:][i]]]
+            )
+            u = [x - u_minus[0][idx] for idx, x in enumerate(u)]
+
+        if norm(u) != 0:
+            e = list(map(lambda x: x / norm(u), u))
+        else:
+            e = u
+        for idx in range(len(q)):
+            q[idx][cnt] = e[idx]
+        cnt += 1
+    r = dot(transpose(q), aa)
+    return q, r
 
 
 def power_eng(a, n):
@@ -271,13 +322,14 @@ def jacobi_eng(a, n):
     return ev, True
 
 
-def gauss_hessen(a, n):
+def gauss_hessen(aa, n):
     """
     将矩阵转换为上Hessenberg矩阵
     :param a: 待求矩阵
     :param n: 矩阵大小
     :return: 上Hessenberg矩阵
     """
+    a = deepcopy(aa)
     for m in range(n - 1):
         x = 0.0
         i = m
@@ -318,20 +370,48 @@ def gauss_hessen(a, n):
 
 
 def qr_aux(i, j):
+    # 非二维或一维矩阵
     if j - i > 2:
         has_zero = False
         for idx1 in range(i + 1, j):
-            for idx2 in range(i, j - 1):
-                if glb.a[idx1][idx2] == 0:
-                    has_zero = True
-                    qr_aux(i, idx1)
-                    qr_aux(idx1, j)
+            if glb.a[idx1][idx1 - 1] == 0:
+                has_zero = True
+                qr_aux(i, idx1)
+                qr_aux(idx1, j)
         if not has_zero:
             # QR分解
-            pass
+            for _ in range(1000):
+                q, r = get_q_r(i, j)
+                rq = dot(r, q)
+                for idx1 in range(i, j):
+                    for idx2 in range(i, j):
+                        glb.a[idx1][idx2] = rq[idx1 - i][idx2 - i]
+                has_zero = False
+                for idx1 in range(i + 1, j):
+                    if glb.a[idx1][idx1 - 1] == 0:
+                        has_zero = True
+                        qr_aux(i, idx1)
+                        qr_aux(idx1, j)
+                if not has_zero:
+                    for i1 in range(j - i):
+                        for i2 in range(j - i):
+                            if i1 == i2:
+                                a = [
+                                    [
+                                        0 for _ in range(j - i)
+                                    ] for _ in range(j - i)
+                                ]
+                                for idx1 in range(i, j):
+                                    for idx2 in range(i, j):
+                                        a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
+                                a = glb.a[i:j][i:j]
+                                glb.en.append(a[i1][i2])
+                                return True
+    # 是二维矩阵
     elif j - i == 2:
         # 手动算特征值
         return True
+    # 是一维矩阵
     elif j - i == 1:
         # 手动算特征值
         return True
@@ -339,6 +419,7 @@ def qr_aux(i, j):
 
 def qr_eng(h, m):
     glb.a = deepcopy(h)
+    print(glb.a)
     glb.n = m
     return qr_aux(0, glb.n)
 
@@ -397,6 +478,25 @@ if __name__ == '__main__':
         "D": D,
         "E": E
     }
+
+    # QR Method
+    print("---------------------")
+    print(f"QR Method:")
+    for key in all_data.keys():
+        # if "E" == key:
+        #     continue
+        print(f"Matrix {key}:")
+        start_time = datetime.now()
+        # TODO QR算法
+        h = gauss_hessen(all_data[key], len(all_data[key]))
+        qr_eng(h, len(h))
+        end_time = datetime.now()
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+        print(f"lambdas={glb.en}")
+        ground_truth_lambdas, _ = la.eig(all_data[key])
+        print(f"ground_truth_lambdas={ground_truth_lambdas}")
+        # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
+        print()
 
     # Power Method
     print("---------------------")
@@ -479,24 +579,4 @@ if __name__ == '__main__':
         ground_truth_lambdas, _ = la.eig(all_data[key])
         print(f"ground_truth_lambdas={ground_truth_lambdas}")
         print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
-        print()
-
-    # QR Method
-    print("---------------------")
-    print(f"QR Method:")
-    for key in all_data.keys():
-        # if "E" == key:
-        #     continue
-        print(f"Matrix {key}:")
-        start_time = datetime.now()
-        # TODO QR算法
-        h = gauss_hessen(all_data[key], len(all_data[key]))
-        qr_eng(h, len(h))
-        end_time = datetime.now()
-
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={glb.en}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
         print()
