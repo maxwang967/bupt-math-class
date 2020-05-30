@@ -182,7 +182,7 @@ def get_q_r(i, j):
             u_minus = dot(
                 dot([[x for x in q[:][i]]],
                     [[x] for x in a]),
-                    [[x for x in q[:][i]]]
+                [[x for x in q[:][i]]]
             )
             u = [x - u_minus[0][idx] for idx, x in enumerate(u)]
 
@@ -378,12 +378,12 @@ def gauss_hessen1(aa, n):
     H = [[0.0 for _ in range(n)] for _ in range(n)]
     Q = I
     B = I
-    for r in range(n-2):
+    for r in range(n - 2):
         s = []
         for i in range(n):
             s.append(aa[i][r])
         e = [0.0 for _ in range(n)]
-        for t in range(r+1):
+        for t in range(r + 1):
             s[t] = 0
         all_zero = 1
         for t in range(n):
@@ -398,14 +398,14 @@ def gauss_hessen1(aa, n):
             s_m = 0
             for i in range(n):
                 s_m = s_m + s[i] ** 2
-            if aa[r+1][r] == 0:
+            if aa[r + 1][r] == 0:
                 c = sqrt(s_m)
             else:
-                if aa[r+1][r] >= 0:
+                if aa[r + 1][r] >= 0:
                     c = -sqrt(s_m)
                 else:
                     c = sqrt(s_m)
-                e[r+1] = 1
+                e[r + 1] = 1
                 for i in range(n):
                     u[i] = s[i] - c * e[i]
                 uu = 0
@@ -413,7 +413,7 @@ def gauss_hessen1(aa, n):
                     uu = uu + u[i] ** 2
                 for i in range(n):
                     for j in range(n):
-                        H[i][j] = I[i][j] - (2 * u[i] * u[j])/uu
+                        H[i][j] = I[i][j] - (2 * u[i] * u[j]) / uu
         B = dot(dot(H, aa), H)
         aa = B
         Q = dot(Q, H)
@@ -438,12 +438,12 @@ def CGS(A):
         a = A.T[i]
         q = np.copy(a)
         for j in range(0, i):
-            r = np.dot(Q[:,j],a)
-            R[j,i] = r
-            q -= np.dot(r,Q[:,j])
+            r = np.dot(Q[:, j], a)
+            R[j, i] = r
+            q -= np.dot(r, Q[:, j])
         q_norm = np.linalg.norm(q)
         R[i, i] = q_norm
-        Q[:, i] = q/q_norm
+        Q[:, i] = q / q_norm
     return Q, R
 
 
@@ -496,15 +496,13 @@ def get_q_r1(i, j):
         q_norm = q_norm ** 0.5
         r[cnt][cnt] = q_norm
         for j in range(len(u)):
-            q[j][cnt] = u[j]/q_norm
+            q[j][cnt] = u[j] / q_norm
         cnt += 1
     return q, r
 
 
 def qr_aux(i, j):
     # 非二维或一维矩阵
-    if j < 5:
-        test = 1
     if j - i > 2:
         has_zero = False
         for idx1 in range(i + 1, j):
@@ -515,68 +513,33 @@ def qr_aux(i, j):
                 break
         if not has_zero:
             # QR分解
-            for num_count in range(10000):
+            for _ in range(10000):
                 q, r = get_q_r1(i, j)
-                # test = dot(q, transpose(q))
-                # test1 = dot(q, r)
-                # for aaa in range(8):
-                #     for bbb in range(8):
-                #         test2 = glb.a[aaa][bbb] - test1[aaa][bbb]
-                # q, r = get_q_r(i, j)
                 rq = dot(r, q)
                 for idx1 in range(i, j):
                     for idx2 in range(i, j):
                         glb.a[idx1][idx2] = rq[idx1 - i][idx2 - i]
                 has_zero = False
-                for idx1 in range(i, j):
+                for idx1 in range(i + 1, j):
                     if abs(glb.a[idx1][idx1 - 1]) < 0.0000000000001:
                         has_zero = True
                         if idx1 == i:
-                            qr_aux(i, i+1)
-                            qr_aux(i+1, j)
+                            qr_aux(i, i + 1)
+                            qr_aux(i + 1, j)
                         else:
                             qr_aux(i, idx1)
                             qr_aux(idx1, j)
                         break
                 if has_zero:
-                    # for i1 in range(j - i):
-                    #     for i2 in range(j - i):
-                    #         if i1 == i2:
-                    #             a = [
-                    #                 [
-                    #                     0 for _ in range(j - i)
-                    #                 ] for _ in range(j - i)
-                    #             ]
-                    #             for idx1 in range(i, j):
-                    #                 for idx2 in range(i, j):
-                    #                     a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
-                    #             a = glb.a[i:j][i:j]
-                    #             glb.en.append(a[i1][i2])
-                    #             return True
                     count = 0
                     for i1 in range(j):
                         for i2 in range(j):
                             if i1 > i2:
                                 count = count + abs(glb.a[i1][i2])
                     if count > 0:
-                        if j-i < glb.n:
+                        if j - i < glb.n:
                             return True
                         else:
-                            # for i1 in range(j - i):
-                            #     for i2 in range(j - i):
-                            #         if i1 == i2:
-                            #             a = [
-                            #                 [
-                            #                     0 for _ in range(j - i)
-                            #                 ] for _ in range(j - i)
-                            #             ]
-                            #             for idx1 in range(i, j):
-                            #                 for idx2 in range(i, j):
-                            #                     a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
-                            #             a = glb.a[i:j][i:j]
-                            #             glb.en.append(a[i1][i2])
-                            #             return True
-
                             for i1 in range(glb.n):
                                 if i1 not in eng_got:
                                     glb.en.append(glb.a[i1][i1])
@@ -584,14 +547,12 @@ def qr_aux(i, j):
     # 是二维矩阵
     elif j - i == 2:
         # 手动算特征值
-        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] + ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
-        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] - ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
-        # glb.a[i][i] = glb.a[i][i] + glb.a[i + 1][i + 1] + ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 0.5 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5
-        # glb.a[i+1][i+1] = glb.a[i][i] + glb.a[i + 1][i + 1] - ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 0.5 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5
-        # glb.a[i][i+1] = 0
-        # glb.a[i+1][i] = 0
+        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] + (
+                (glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
+        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] - (
+                (glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
         eng_got.append(i)
-        eng_got.append(i+1)
+        eng_got.append(i + 1)
         return True
     # 是一维矩阵
     elif j - i == 1:
@@ -603,7 +564,7 @@ def qr_aux(i, j):
 
 def qr_eng(h, m):
     glb.a = deepcopy(h)
-    print(glb.a)
+    # print(glb.a)
     glb.n = m
     return qr_aux(0, glb.n)
 
@@ -656,36 +617,12 @@ if __name__ == '__main__':
         ] for i in range(50)
     ]
     all_data = {
-        # "A": A,
-        # "B": B,
-        # "C": C,
-        # "D": D,
+        "A": A,
+        "B": B,
+        "C": C,
+        "D": D,
         "E": E
     }
-
-    # QR Method
-    print("---------------------")
-    print(f"QR Method:")
-    eng_got = []
-    for key in all_data.keys():
-        # if "E" == key:
-        #     continue
-        # print(f"Matrix {key}:")
-        start_time = datetime.now()
-        # TODO QR算法
-        # h = gauss_hessen(all_data[key], len(all_data[key]))
-        h = gauss_hessen1(all_data[key], len(all_data[key]))
-        h_test = qr_eng(h, len(h))
-        glb.en.sort(key=abs, reverse=True)
-        end_time = datetime.now()
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={glb.en}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
-        print()
-        glb.en.clear()
-        eng_got.clear()
 
     # Power Method
     print("---------------------")
@@ -769,3 +706,47 @@ if __name__ == '__main__':
         print(f"ground_truth_lambdas={ground_truth_lambdas}")
         print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
         print()
+
+    # QR Method
+    print("---------------------")
+    print(f"QR Method:")
+    eng_got = []
+    for key in all_data.keys():
+        print(f"Matrix {key}:")
+        start_time = datetime.now()
+        h = gauss_hessen1(all_data[key], len(all_data[key]))
+        h_test = qr_eng(h, len(h))
+        glb.en.sort(key=abs, reverse=True)
+        end_time = datetime.now()
+        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+        print(f"lambdas={glb.en}")
+        ground_truth_lambdas, _ = la.eig(all_data[key])
+        print(f"ground_truth_lambdas={ground_truth_lambdas}")
+        # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
+        print()
+        glb.en.clear()
+        eng_got.clear()
+
+    # Find solutions to polynomials
+    # x^11 + x^10 + ... + x + 1 = 0
+    print("---------------------")
+    print(f"Find solutions to polynomials:")
+    eng_got = []
+    a = [[0 for _ in range(11)] for _ in range(11)]
+    for i in range(1, 11):
+        a[i][i - 1] = 1
+    for i in range(11):
+        a[i][10] = -1
+    print(f"Solutions to polynomials:")
+    start_time = datetime.now()
+    # h = gauss_hessen1(a, len(a))
+    h_test = qr_eng(a, len(a))
+    glb.en.sort(key=abs, reverse=True)
+    end_time = datetime.now()
+    print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+    print(f"lambdas={glb.en}")
+    ground_truth_lambdas, _ = la.eig(a)
+    print(f"ground_truth_lambdas={ground_truth_lambdas}")
+    print()
+    glb.en.clear()
+    eng_got.clear()
