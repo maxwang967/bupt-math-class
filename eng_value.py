@@ -155,48 +155,6 @@ def compute_lu_result(a, bb, is_initial=False):
     return results
 
 
-def get_q_r(i, j):
-    """
-    Gram-schmidt正交化方法获取Q、R矩阵
-    :param i
-    :param j
-    :return: Q、R矩阵
-    """
-    aa = [
-        [0 for _ in range(j - i)] for _ in range(j - i)
-    ]
-
-    for idx1 in range(j - i):
-        for idx2 in range(j - i):
-            aa[idx1][idx2] = glb.a[i + idx1][i + idx2]
-    q = [
-        [
-            0 for _ in range(len(aa[0]))
-        ] for _ in range(len(aa))
-    ]
-    cnt = 0
-    a_t = transpose(aa)
-    for a in a_t:
-        u = deepcopy(a)
-        for i in range(cnt):
-            u_minus = dot(
-                dot([[x for x in q[:][i]]],
-                    [[x] for x in a]),
-                [[x for x in q[:][i]]]
-            )
-            u = [x - u_minus[0][idx] for idx, x in enumerate(u)]
-
-        if norm(u) != 0:
-            e = list(map(lambda x: x / norm(u), u))
-        else:
-            e = u
-        for idx in range(len(q)):
-            q[idx][cnt] = e[idx]
-        cnt += 1
-    r = dot(transpose(q), aa)
-    return q, r
-
-
 def power_eng(a, n):
     """
     幂法求矩阵最大特征值
@@ -322,53 +280,6 @@ def jacobi_eng(a, n):
 
 
 def gauss_hessen(aa, n):
-    """
-    将矩阵转换为上Hessenberg矩阵
-    :param a: 待求矩阵
-    :param n: 矩阵大小
-    :return: 上Hessenberg矩阵
-    """
-    a = deepcopy(aa)
-    for m in range(n - 1):
-        x = 0.0
-        i = m
-        # 寻找主元
-        for j in range(n):
-            if abs(a[j][m - 1]) > abs(x):
-                x = a[j][m - 1]
-                i = j
-        # 交换行列
-        if i != m:
-            for j in range(m - 1, n):
-                # SWAP(a[i][j], a[m][j])
-                t = a[i][j]
-                a[i][j] = a[m][j]
-                a[m][j] = t
-            for j in range(n):
-                # SWAP(a[j][i], a[j][m])
-                t = a[j][i]
-                a[j][i] = a[j][m]
-                a[j][m] = t
-        # 执行消去法
-        if x != 0.0:
-            for i in range(m + 1, n):
-                y = a[i][m - 1]
-                if y != 0:
-                    y /= x
-                    a[i][m - 1] = y
-                    for j in range(m, n):
-                        a[i][j] -= y * a[m][j]
-                    for j in range(0, n):
-                        a[j][m] += y * a[j][i]
-    # i > j + 1的元素输出为0
-    for i in range(n):
-        for j in range(n):
-            if i > j + 1:
-                a[i][j] = 0
-    return a
-
-
-def gauss_hessen1(aa, n):
     s = [0.0 for _ in range(n)]
     u = [0.0 for _ in range(n)]
     c = 0
@@ -430,21 +341,21 @@ def gauss_hessen1(aa, n):
 # Q, B = gauss_hessen1(TT, 4)
 
 
-def CGS(A):
-    w, _ = A.shape
-    Q = np.zeros_like(A, dtype=np.float32)
-    R = np.copy(Q)
-    for i in range(w):
-        a = A.T[i]
-        q = np.copy(a)
-        for j in range(0, i):
-            r = np.dot(Q[:, j], a)
-            R[j, i] = r
-            q -= np.dot(r, Q[:, j])
-        q_norm = np.linalg.norm(q)
-        R[i, i] = q_norm
-        Q[:, i] = q / q_norm
-    return Q, R
+# def CGS(A):
+#     w, _ = A.shape
+#     Q = np.zeros_like(A, dtype=np.float32)
+#     R = np.copy(Q)
+#     for i in range(w):
+#         a = A.T[i]
+#         q = np.copy(a)
+#         for j in range(0, i):
+#             r = np.dot(Q[:, j], a)
+#             R[j, i] = r
+#             q -= np.dot(r, Q[:, j])
+#         q_norm = np.linalg.norm(q)
+#         R[i, i] = q_norm
+#         Q[:, i] = q / q_norm
+#     return Q, R
 
 
 # test = np.random.rand(8, 8)
@@ -452,8 +363,45 @@ def CGS(A):
 # test3 = np.dot(test1, test2)
 # test4 = test - test3
 
+def get_q_r_householder(i, j):
+    """
+    HouseHolder方法获取Q、R矩阵
+    :param i
+    :param j
+    :return: Q、R矩阵
+    """
+    aa = [
+        [0 for _ in range(j - i)] for _ in range(j - i)
+    ]
+    r = len(aa)
+    c = len(aa[0])
+    for idx1 in range(j - i):
+        for idx2 in range(j - i):
+            aa[idx1][idx2] = glb.a[i + idx1][i + idx2]
+            # aa[idx1][idx2] = test[i + idx1][i + idx2]
+    Q = create_identify_matrix(len(aa))
+    R = deepcopy(aa)
+    for cnt in range(r - 1):
+        x = [R[x][cnt] for x in range(len(R) - cnt)]
+        e = [0 for x in range(len(x))]
+        e[0] = norm(x)
+        u = [x[i] - e[i] for i in range(len(x))]
+        v = [u[i] / norm(u) if norm(u) != 0 else u[i] for i in range(len(u))]
+        Q_cnt = create_identify_matrix(r)
+        outer = [
+           [
+               v[i] * v[j] for j in range(len(v))
+           ] for i in range(len(v))
+        ]
+        for idx1, i in enumerate(range(cnt, len(Q_cnt))):
+            for idx2, j in enumerate(range(cnt, len(Q_cnt[0]))):
+                Q_cnt[i][j] -= 2.0 * outer[idx1][idx2]
+        R = dot(Q_cnt, R)
+        Q = dot(Q, Q_cnt)
+    return Q, R
 
-def get_q_r1(i, j):
+
+def get_q_r(i, j):
     """
     Gram-schmidt正交化方法获取Q、R矩阵
     :param i
@@ -507,14 +455,16 @@ def qr_aux(i, j):
         has_zero = False
         for idx1 in range(i + 1, j):
             if abs(glb.a[idx1][idx1 - 1]) < 0.0000000000001:
+            # if abs(glb.a[idx1][idx1 - 1]) == 0:
                 has_zero = True
                 qr_aux(i, idx1)
                 qr_aux(idx1, j)
                 break
         if not has_zero:
             # QR分解
-            for _ in range(10000):
-                q, r = get_q_r1(i, j)
+            for _ in range(1000000):
+                # q, r = get_q_r(i, j)
+                q, r = get_q_r_householder(i, j)
                 rq = dot(r, q)
                 for idx1 in range(i, j):
                     for idx2 in range(i, j):
@@ -522,6 +472,7 @@ def qr_aux(i, j):
                 has_zero = False
                 for idx1 in range(i + 1, j):
                     if abs(glb.a[idx1][idx1 - 1]) < 0.0000000000001:
+                    # if abs(glb.a[idx1][idx1 - 1]) == 0:
                         has_zero = True
                         if idx1 == i:
                             qr_aux(i, i + 1)
@@ -624,108 +575,108 @@ if __name__ == '__main__':
         "E": E
     }
 
-    # Power Method
-    print("---------------------")
-    print(f"Power Method:")
-    for key in all_data.keys():
-        # if "E" == key:
-        #     continue
-        print(f"Matrix {key}:")
-        start_time = datetime.now()
-        pld, env, _ = power_eng(all_data[key], len(all_data[key]))
-        end_time = datetime.now()
-        lambda1, v = la.eig(all_data[key])
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"my_lambda1={pld}")
-        print(f"my_v={[x[0] for x in env]}")
-        Ax = dot(all_data[key], env)
-        lambda_x = multiply_with_number(env, pld)
-        differ_matrix = [
-            [
-                0 for _ in range(len(Ax))
-            ] for _ in range(len(Ax))
-        ]
-        for i in range(len(Ax)):
-            for j in range(1):
-                differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
-        square_sum = 0
-        for i in range(len(differ_matrix)):
-            for j in range(len(differ_matrix)):
-                square_sum += differ_matrix[i][j] * differ_matrix[i][j]
-        differ = sqrt(square_sum)
-        print(f"ground_truth_lambda1={max(lambda1)}")
-        print(f"differ={differ}")
-        print()
+    # # Power Method
+    # print("---------------------")
+    # print(f"Power Method:")
+    # for key in all_data.keys():
+    #     # if "E" == key:
+    #     #     continue
+    #     print(f"Matrix {key}:")
+    #     start_time = datetime.now()
+    #     pld, env, _ = power_eng(all_data[key], len(all_data[key]))
+    #     end_time = datetime.now()
+    #     lambda1, v = la.eig(all_data[key])
+    #     print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+    #     print(f"my_lambda1={pld}")
+    #     print(f"my_v={[x[0] for x in env]}")
+    #     Ax = dot(all_data[key], env)
+    #     lambda_x = multiply_with_number(env, pld)
+    #     differ_matrix = [
+    #         [
+    #             0 for _ in range(len(Ax))
+    #         ] for _ in range(len(Ax))
+    #     ]
+    #     for i in range(len(Ax)):
+    #         for j in range(1):
+    #             differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
+    #     square_sum = 0
+    #     for i in range(len(differ_matrix)):
+    #         for j in range(len(differ_matrix)):
+    #             square_sum += differ_matrix[i][j] * differ_matrix[i][j]
+    #     differ = sqrt(square_sum)
+    #     print(f"ground_truth_lambda1={max(lambda1)}")
+    #     print(f"differ={differ}")
+    #     print()
+    #
+    # # Inv Power Method
+    # print("---------------------")
+    # print(f"Inv Power Method:")
+    # for key in all_data.keys():
+    #     print(f"Matrix {key}:")
+    #     start_time = datetime.now()
+    #     pld, env, _ = inv_power_eng(all_data[key], len(all_data[key]))
+    #     end_time = datetime.now()
+    #     lambda1, v = la.eig(all_data[key])
+    #     print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+    #     print(f"my_lambda1={pld}")
+    #     print(f"my_v={[x for x in env]}")
+    #     env = [[x] for x in env]
+    #     Ax = dot(all_data[key], env)
+    #     lambda_x = multiply_with_number(env, pld)
+    #     differ_matrix = [
+    #         [
+    #             0 for _ in range(len(Ax))
+    #         ] for _ in range(len(Ax))
+    #     ]
+    #     for i in range(len(Ax)):
+    #         for j in range(1):
+    #             differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
+    #     square_sum = 0
+    #     for i in range(len(differ_matrix)):
+    #         for j in range(len(differ_matrix)):
+    #             square_sum += differ_matrix[i][j] * differ_matrix[i][j]
+    #     differ = sqrt(square_sum)
+    #     print(f"ground_truth_lambda1={lambda1}")
+    #     print(f"differ={differ}")
+    #     print()
+    #
+    # # Jacobi Method
+    # print("---------------------")
+    # print(f"Jacobi Method:")
+    # for key in all_data.keys():
+    #     if "E" == key:
+    #         continue
+    #     print(f"Matrix {key}:")
+    #     start_time = datetime.now()
+    #     ev, _ = jacobi_eng(all_data[key], len(all_data[key]))
+    #     end_time = datetime.now()
+    #
+    #     print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+    #     print(f"lambdas={ev}")
+    #     ground_truth_lambdas, _ = la.eig(all_data[key])
+    #     print(f"ground_truth_lambdas={ground_truth_lambdas}")
+    #     print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
+    #     print()
 
-    # Inv Power Method
-    print("---------------------")
-    print(f"Inv Power Method:")
-    for key in all_data.keys():
-        print(f"Matrix {key}:")
-        start_time = datetime.now()
-        pld, env, _ = inv_power_eng(all_data[key], len(all_data[key]))
-        end_time = datetime.now()
-        lambda1, v = la.eig(all_data[key])
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"my_lambda1={pld}")
-        print(f"my_v={[x for x in env]}")
-        env = [[x] for x in env]
-        Ax = dot(all_data[key], env)
-        lambda_x = multiply_with_number(env, pld)
-        differ_matrix = [
-            [
-                0 for _ in range(len(Ax))
-            ] for _ in range(len(Ax))
-        ]
-        for i in range(len(Ax)):
-            for j in range(1):
-                differ_matrix[i][j] = Ax[i][j] - lambda_x[i][j]
-        square_sum = 0
-        for i in range(len(differ_matrix)):
-            for j in range(len(differ_matrix)):
-                square_sum += differ_matrix[i][j] * differ_matrix[i][j]
-        differ = sqrt(square_sum)
-        print(f"ground_truth_lambda1={lambda1}")
-        print(f"differ={differ}")
-        print()
-
-    # Jacobi Method
-    print("---------------------")
-    print(f"Jacobi Method:")
-    for key in all_data.keys():
-        if "E" == key:
-            continue
-        print(f"Matrix {key}:")
-        start_time = datetime.now()
-        ev, _ = jacobi_eng(all_data[key], len(all_data[key]))
-        end_time = datetime.now()
-
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={ev}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
-        print()
-
-    # QR Method
-    print("---------------------")
-    print(f"QR Method:")
-    eng_got = []
-    for key in all_data.keys():
-        print(f"Matrix {key}:")
-        start_time = datetime.now()
-        h = gauss_hessen1(all_data[key], len(all_data[key]))
-        h_test = qr_eng(h, len(h))
-        glb.en.sort(key=abs, reverse=True)
-        end_time = datetime.now()
-        print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
-        print(f"lambdas={glb.en}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
-        print()
-        glb.en.clear()
-        eng_got.clear()
+    # # QR Method
+    # print("---------------------")
+    # print(f"QR Method:")
+    # eng_got = []
+    # for key in all_data.keys():
+    #     print(f"Matrix {key}:")
+    #     start_time = datetime.now()
+    #     h = gauss_hessen(all_data[key], len(all_data[key]))
+    #     h_test = qr_eng(h, len(h))
+    #     glb.en.sort(key=abs, reverse=True)
+    #     end_time = datetime.now()
+    #     print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
+    #     print(f"lambdas={glb.en}")
+    #     ground_truth_lambdas, _ = la.eig(all_data[key])
+    #     print(f"ground_truth_lambdas={ground_truth_lambdas}")
+    #     # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
+    #     print()
+    #     glb.en.clear()
+    #     eng_got.clear()
 
     # Find solutions to polynomials
     # x^11 + x^10 + ... + x + 1 = 0

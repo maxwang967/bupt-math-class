@@ -264,21 +264,21 @@ A = [
         ] for i in range(50)
     ]
 
-temp = copy.deepcopy(gauss_hessen(A, 8))
-val = []  # 特征值
-times = 20  # 迭代次数
-for i in range(times):
-    qr = QR(temp)
-    (q, r) = qr.execute()
-    temp = QR.matrix_multi(r, q)
-    temp = QR.matrix_T(temp)
-
-for i in range(len(temp)):
-    for j in range(len(temp[0])):
-        if i == j:
-            val.append(temp[i][j])
-# 特征值
-print(val)
+# temp = copy.deepcopy(gauss_hessen(A, 8))
+# val = []  # 特征值
+# times = 20  # 迭代次数
+# for i in range(times):
+#     qr = QR(temp)
+#     (q, r) = qr.execute()
+#     temp = QR.matrix_multi(r, q)
+#     temp = QR.matrix_T(temp)
+#
+# for i in range(len(temp)):
+#     for j in range(len(temp[0])):
+#         if i == j:
+#             val.append(temp[i][j])
+# # 特征值
+# print(val)
 
 # glb.a = A
 # (Q, R) = gram_schmidt(glb.a[2:6][2:6])
@@ -297,7 +297,7 @@ print(val)
 # print(R)
 # print(np.dot(Q, R))
 #
-# (Q, R) = householder_reflection(A)
-# print(Q)
-# print(R)
-# print(np.dot(Q, R))
+(Q, R) = householder_reflection(A)
+print(Q)
+print(R)
+print(np.dot(Q, R))
