@@ -106,7 +106,7 @@ def norm(v):
     sum_num = 0
     for vv in v:
         sum_num += vv * vv
-    return sqrt(sum_num)
+    return sum_num ** 0.5
 
 
 def lu_decomposition(aa):
@@ -382,20 +382,23 @@ def get_q_r_householder(i, j):
     Q = create_identify_matrix(len(aa))
     R = deepcopy(aa)
     for cnt in range(r - 1):
-        x = [R[x][cnt] for x in range(len(R) - cnt)]
-        e = [0 for x in range(len(x))]
+        x = [R[x][cnt] for x in range(cnt, len(R))]
+        e = [0.0 for x in range(len(x))]
         e[0] = norm(x)
-        u = [x[i] - e[i] for i in range(len(x))]
-        v = [u[i] / norm(u) if norm(u) != 0 else u[i] for i in range(len(u))]
+        u = [x[i_xe] - e[i_xe] for i_xe in range(len(x))]
+        norm_u = norm(u)
+        # if norm_u == 0:
+        #     continue
+        v = [u[u_idx] / norm_u for u_idx in range(len(u))]
         Q_cnt = create_identify_matrix(r)
         outer = [
            [
-               v[i] * v[j] for j in range(len(v))
-           ] for i in range(len(v))
+               v[v_idx1] * v[v_idx2] for v_idx2 in range(len(v))
+           ] for v_idx1 in range(len(v))
         ]
-        for idx1, i in enumerate(range(cnt, len(Q_cnt))):
-            for idx2, j in enumerate(range(cnt, len(Q_cnt[0]))):
-                Q_cnt[i][j] -= 2.0 * outer[idx1][idx2]
+        for idx1 in range(cnt, len(Q_cnt)):
+            for idx2 in range(cnt, len(Q_cnt[0])):
+                Q_cnt[idx1][idx2] -= 2.0 * outer[idx1 - cnt][idx2 - cnt]
         R = dot(Q_cnt, R)
         Q = dot(Q, Q_cnt)
     return Q, R
@@ -462,7 +465,7 @@ def qr_aux(i, j):
                 break
         if not has_zero:
             # QR分解
-            for _ in range(1000000):
+            for _ in range(10000):
                 # q, r = get_q_r(i, j)
                 q, r = get_q_r_householder(i, j)
                 rq = dot(r, q)
@@ -510,6 +513,8 @@ def qr_aux(i, j):
         # 手动算特征值
         glb.en.append(glb.a[i][i])
         eng_got.append(i)
+        return True
+    else:
         return True
 
 

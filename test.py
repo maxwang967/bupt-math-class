@@ -258,11 +258,11 @@ class QR(object):
 #     [2, 1, 2],
 #     [2, 2, 1]
 # ]
-A = [
-        [
-            1 if i == j else (-1 if i > j else (1 if j == 49 else 0)) for j in range(50)
-        ] for i in range(50)
-    ]
+a = [[0 for _ in range(11)] for _ in range(11)]
+for i in range(1, 11):
+    a[i][i - 1] = 1
+for i in range(11):
+    a[i][10] = -1
 
 # temp = copy.deepcopy(gauss_hessen(A, 8))
 # val = []  # 特征值
@@ -297,7 +297,7 @@ A = [
 # print(R)
 # print(np.dot(Q, R))
 #
-(Q, R) = householder_reflection(A)
+(Q, R) = householder_reflection(a)
 print(Q)
 print(R)
 print(np.dot(Q, R))
