@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import datetime
 from math import sqrt, sin, pi, atan, cos
 import global_for_eng as glb
+import numpy as np
 
 # TODO this 'numpy' is to remove after release, and all codes using this package can be removed at same time
 from numpy import linalg as la
@@ -179,11 +180,9 @@ def get_q_r(i, j):
         u = deepcopy(a)
         for i in range(cnt):
             u_minus = dot(
-                dot([
-                    [x for x in q[:][i]]
-                ],
+                dot([[x for x in q[:][i]]],
                     [[x] for x in a]),
-                [[x for x in q[:][i]]]
+                    [[x for x in q[:][i]]]
             )
             u = [x - u_minus[0][idx] for idx, x in enumerate(u)]
 
@@ -369,51 +368,236 @@ def gauss_hessen(aa, n):
     return a
 
 
+def gauss_hessen1(aa, n):
+    s = [0.0 for _ in range(n)]
+    u = [0.0 for _ in range(n)]
+    c = 0
+    I = [[0.0 for _ in range(n)] for _ in range(n)]
+    for r in range(n):
+        I[r][r] = 1.0
+    H = [[0.0 for _ in range(n)] for _ in range(n)]
+    Q = I
+    B = I
+    for r in range(n-2):
+        s = []
+        for i in range(n):
+            s.append(aa[i][r])
+        e = [0.0 for _ in range(n)]
+        for t in range(r+1):
+            s[t] = 0
+        all_zero = 1
+        for t in range(n):
+            if s[t] != 0:
+                all_zero = 0
+                break
+        if all_zero:
+            for i in range(n):
+                for j in range(n):
+                    H[i][j] = I[i][j]
+        else:
+            s_m = 0
+            for i in range(n):
+                s_m = s_m + s[i] ** 2
+            if aa[r+1][r] == 0:
+                c = sqrt(s_m)
+            else:
+                if aa[r+1][r] >= 0:
+                    c = -sqrt(s_m)
+                else:
+                    c = sqrt(s_m)
+                e[r+1] = 1
+                for i in range(n):
+                    u[i] = s[i] - c * e[i]
+                uu = 0
+                for i in range(n):
+                    uu = uu + u[i] ** 2
+                for i in range(n):
+                    for j in range(n):
+                        H[i][j] = I[i][j] - (2 * u[i] * u[j])/uu
+        B = dot(dot(H, aa), H)
+        aa = B
+        Q = dot(Q, H)
+    return B
+
+
+# TT = [
+#     [54, 40, 10, 76],
+#     [47, 20, 94, 49],
+#     [26, 80, 94, 70],
+#     [3, 92, 83, 45]
+# ]
+#
+# Q, B = gauss_hessen1(TT, 4)
+
+
+def CGS(A):
+    w, _ = A.shape
+    Q = np.zeros_like(A, dtype=np.float32)
+    R = np.copy(Q)
+    for i in range(w):
+        a = A.T[i]
+        q = np.copy(a)
+        for j in range(0, i):
+            r = np.dot(Q[:,j],a)
+            R[j,i] = r
+            q -= np.dot(r,Q[:,j])
+        q_norm = np.linalg.norm(q)
+        R[i, i] = q_norm
+        Q[:, i] = q/q_norm
+    return Q, R
+
+
+# test = np.random.rand(8, 8)
+# (test1, test2) = CGS(test)
+# test3 = np.dot(test1, test2)
+# test4 = test - test3
+
+
+def get_q_r1(i, j):
+    """
+    Gram-schmidt正交化方法获取Q、R矩阵
+    :param i
+    :param j
+    :return: Q、R矩阵
+    """
+    aa = [
+        [0 for _ in range(j - i)] for _ in range(j - i)
+    ]
+
+    for idx1 in range(j - i):
+        for idx2 in range(j - i):
+            aa[idx1][idx2] = glb.a[i + idx1][i + idx2]
+            # aa[idx1][idx2] = test[i + idx1][i + idx2]
+    q = [
+        [
+            0.0 for _ in range(len(aa[0]))
+        ] for _ in range(len(aa))
+    ]
+    r = [
+        [
+            0.0 for _ in range(len(aa[0]))
+        ] for _ in range(len(aa))
+    ]
+    cnt = 0
+    a_t = transpose(aa)
+    for a in a_t:
+        u = deepcopy(a)  # u=q
+        for i in range(cnt):
+            u_minus = 0
+            for j in range(len(a)):
+                u_minus = u_minus + q[j][i] * a[j]
+            # u_minus = dot([[x for x in q[:][i]]], [[x] for x in a])
+            r[i][cnt] = u_minus
+            for j in range(len(u)):
+                u[j] = u[j] - q[j][i] * u_minus
+        q_norm = 0
+        for j in range(len(u)):
+            q_norm = q_norm + u[j] ** 2
+        q_norm = q_norm ** 0.5
+        r[cnt][cnt] = q_norm
+        for j in range(len(u)):
+            q[j][cnt] = u[j]/q_norm
+        cnt += 1
+    return q, r
+
+
 def qr_aux(i, j):
     # 非二维或一维矩阵
+    if j < 5:
+        test = 1
     if j - i > 2:
         has_zero = False
         for idx1 in range(i + 1, j):
-            if glb.a[idx1][idx1 - 1] == 0:
+            if abs(glb.a[idx1][idx1 - 1]) < 0.0000000000001:
                 has_zero = True
                 qr_aux(i, idx1)
                 qr_aux(idx1, j)
+                break
         if not has_zero:
             # QR分解
-            for _ in range(1000):
-                q, r = get_q_r(i, j)
+            for num_count in range(10000):
+                q, r = get_q_r1(i, j)
+                # test = dot(q, transpose(q))
+                # test1 = dot(q, r)
+                # for aaa in range(8):
+                #     for bbb in range(8):
+                #         test2 = glb.a[aaa][bbb] - test1[aaa][bbb]
+                # q, r = get_q_r(i, j)
                 rq = dot(r, q)
                 for idx1 in range(i, j):
                     for idx2 in range(i, j):
                         glb.a[idx1][idx2] = rq[idx1 - i][idx2 - i]
                 has_zero = False
-                for idx1 in range(i + 1, j):
-                    if glb.a[idx1][idx1 - 1] == 0:
+                for idx1 in range(i, j):
+                    if abs(glb.a[idx1][idx1 - 1]) < 0.0000000000001:
                         has_zero = True
-                        qr_aux(i, idx1)
-                        qr_aux(idx1, j)
-                if not has_zero:
-                    for i1 in range(j - i):
-                        for i2 in range(j - i):
-                            if i1 == i2:
-                                a = [
-                                    [
-                                        0 for _ in range(j - i)
-                                    ] for _ in range(j - i)
-                                ]
-                                for idx1 in range(i, j):
-                                    for idx2 in range(i, j):
-                                        a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
-                                a = glb.a[i:j][i:j]
-                                glb.en.append(a[i1][i2])
-                                return True
+                        if idx1 == i:
+                            qr_aux(i, i+1)
+                            qr_aux(i+1, j)
+                        else:
+                            qr_aux(i, idx1)
+                            qr_aux(idx1, j)
+                        break
+                if has_zero:
+                    # for i1 in range(j - i):
+                    #     for i2 in range(j - i):
+                    #         if i1 == i2:
+                    #             a = [
+                    #                 [
+                    #                     0 for _ in range(j - i)
+                    #                 ] for _ in range(j - i)
+                    #             ]
+                    #             for idx1 in range(i, j):
+                    #                 for idx2 in range(i, j):
+                    #                     a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
+                    #             a = glb.a[i:j][i:j]
+                    #             glb.en.append(a[i1][i2])
+                    #             return True
+                    count = 0
+                    for i1 in range(j):
+                        for i2 in range(j):
+                            if i1 > i2:
+                                count = count + abs(glb.a[i1][i2])
+                    if count > 0:
+                        if j-i < glb.n:
+                            return True
+                        else:
+                            # for i1 in range(j - i):
+                            #     for i2 in range(j - i):
+                            #         if i1 == i2:
+                            #             a = [
+                            #                 [
+                            #                     0 for _ in range(j - i)
+                            #                 ] for _ in range(j - i)
+                            #             ]
+                            #             for idx1 in range(i, j):
+                            #                 for idx2 in range(i, j):
+                            #                     a[idx1][idx2] = glb.a[idx1 + i][idx2 + i]
+                            #             a = glb.a[i:j][i:j]
+                            #             glb.en.append(a[i1][i2])
+                            #             return True
+
+                            for i1 in range(glb.n):
+                                if i1 not in eng_got:
+                                    glb.en.append(glb.a[i1][i1])
+                            return True
     # 是二维矩阵
     elif j - i == 2:
         # 手动算特征值
+        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] + ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
+        glb.en.append((glb.a[i][i] + glb.a[i + 1][i + 1] - ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 2 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5) / 2)
+        # glb.a[i][i] = glb.a[i][i] + glb.a[i + 1][i + 1] + ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 0.5 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5
+        # glb.a[i+1][i+1] = glb.a[i][i] + glb.a[i + 1][i + 1] - ((glb.a[i][i] - glb.a[i + 1][i + 1]) ** 0.5 + 4 * glb.a[i + 1][i] * glb.a[i][i + 1]) ** 0.5
+        # glb.a[i][i+1] = 0
+        # glb.a[i+1][i] = 0
+        eng_got.append(i)
+        eng_got.append(i+1)
         return True
     # 是一维矩阵
     elif j - i == 1:
         # 手动算特征值
+        glb.en.append(glb.a[i][i])
+        eng_got.append(i)
         return True
 
 
@@ -472,24 +656,27 @@ if __name__ == '__main__':
         ] for i in range(50)
     ]
     all_data = {
-        "A": A,
-        "B": B,
-        "C": C,
-        "D": D,
+        # "A": A,
+        # "B": B,
+        # "C": C,
+        # "D": D,
         "E": E
     }
 
     # QR Method
     print("---------------------")
     print(f"QR Method:")
+    eng_got = []
     for key in all_data.keys():
         # if "E" == key:
         #     continue
-        print(f"Matrix {key}:")
+        # print(f"Matrix {key}:")
         start_time = datetime.now()
         # TODO QR算法
-        h = gauss_hessen(all_data[key], len(all_data[key]))
-        qr_eng(h, len(h))
+        # h = gauss_hessen(all_data[key], len(all_data[key]))
+        h = gauss_hessen1(all_data[key], len(all_data[key]))
+        h_test = qr_eng(h, len(h))
+        glb.en.sort(key=abs, reverse=True)
         end_time = datetime.now()
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"lambdas={glb.en}")
@@ -497,6 +684,8 @@ if __name__ == '__main__':
         print(f"ground_truth_lambdas={ground_truth_lambdas}")
         # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
         print()
+        glb.en.clear()
+        eng_got.clear()
 
     # Power Method
     print("---------------------")
