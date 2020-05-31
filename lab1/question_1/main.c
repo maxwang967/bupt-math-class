@@ -7,7 +7,7 @@ float my_sqrt(float c)
 {
     if (c < 0)
         return -1;
-    double t = c;
+    double t = 1.1 * c + 0.5;
     double rel_err = 1;
     while (fabs(rel_err) > 1e-15)
     {
@@ -188,5 +188,5 @@ int test_double()
 
 int main()
 {
-    test_double();
+    test_float();
 }

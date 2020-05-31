@@ -633,3 +633,21 @@ if __name__ == '__main__':
         glb.en.clear()
         eng_got.clear()
 
+    # Find solutions to polynomials
+    # x^11 + x^10 + ... + x + 1 = 0
+    import numpy.linalg as la
+    print("---------------------")
+    print(f"Find solutions to polynomials:")
+    eng_got = []
+    a = [[0 for _ in range(11)] for _ in range(11)]
+    for i in range(1, 11):
+        a[i][i - 1] = 1
+    for i in range(11):
+        a[i][10] = -1
+    print(f"Solutions to polynomials:")
+    # h = gauss_hessen1(a, len(a))
+    ground_truth_lambdas, _ = la.eig(a)
+    print(f"ground_truth_lambdas={ground_truth_lambdas}")
+    print()
+    glb.en.clear()
+    eng_got.clear()
