@@ -7,11 +7,7 @@
 from copy import deepcopy
 from datetime import datetime
 from math import sqrt, sin, pi, atan, cos
-import global_for_eng as glb
-import numpy as np
-
-# TODO this 'numpy' is to remove after release, and all codes using this package can be removed at same time
-from numpy import linalg as la
+import question3_global_variable as glb
 
 
 def multiply_with_number(a, number):
@@ -554,7 +550,6 @@ if __name__ == '__main__':
         start_time = datetime.now()
         pld, env, _ = power_eng(all_data[key], len(all_data[key]))
         end_time = datetime.now()
-        lambda1, v = la.eig(all_data[key])
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"my_lambda1={pld}")
         print(f"my_v={[x[0] for x in env]}")
@@ -573,7 +568,6 @@ if __name__ == '__main__':
             for j in range(len(differ_matrix)):
                 square_sum += differ_matrix[i][j] * differ_matrix[i][j]
         differ = sqrt(square_sum)
-        print(f"ground_truth_lambda1={max(lambda1)}")
         print(f"differ={differ}")
         print()
 
@@ -585,7 +579,6 @@ if __name__ == '__main__':
         start_time = datetime.now()
         pld, env, _ = inv_power_eng(all_data[key], len(all_data[key]))
         end_time = datetime.now()
-        lambda1, v = la.eig(all_data[key])
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"my_lambda1={pld}")
         print(f"my_v={[x for x in env]}")
@@ -605,7 +598,6 @@ if __name__ == '__main__':
             for j in range(len(differ_matrix)):
                 square_sum += differ_matrix[i][j] * differ_matrix[i][j]
         differ = sqrt(square_sum)
-        print(f"ground_truth_lambda1={lambda1}")
         print(f"differ={differ}")
         print()
 
@@ -622,9 +614,6 @@ if __name__ == '__main__':
 
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"lambdas={ev}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        print(f"ground_truth_differ={abs(max(ev) - max(ground_truth_lambdas))}")
         print()
 
     # QR Method
@@ -640,9 +629,6 @@ if __name__ == '__main__':
         end_time = datetime.now()
         print(f"Running Time: {(end_time - start_time).microseconds / 1000}ms")
         print(f"lambdas={glb.en}")
-        ground_truth_lambdas, _ = la.eig(all_data[key])
-        print(f"ground_truth_lambdas={ground_truth_lambdas}")
-        # print(f"ground_truth_differ={abs(max(glb.en) - max(ground_truth_lambdas))}")
         print()
         glb.en.clear()
         eng_got.clear()
