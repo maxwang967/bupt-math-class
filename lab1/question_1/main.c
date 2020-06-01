@@ -215,5 +215,5 @@ int test_double()
 
 int main()
 {
-    test_double();
+    test_float();
 }

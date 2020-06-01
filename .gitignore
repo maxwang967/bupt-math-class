@@ -1,1 +1,6 @@
 .vscode
+*.out
+lab1/.idea
+lab1/question_1/cmake-build-debug
+.idea
+*.pyc
